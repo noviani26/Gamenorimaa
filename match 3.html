@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Norimaa Memory Game</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: pink;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .box {
+      background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      max-width: 600px;
+      margin: 20px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .card {
+      width: 60px;
+      height: 60px;
+      font-size: 32px;
+      background-color: #ffe4f2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .card.matched {
+      background-color: transparent;
+      visibility: hidden;
+    }
+
+    button {
+      background-color: #ff84b7;
+      border: none;
+      border-radius: 10px;
+      color: white;
+      padding: 12px 24px;
+      margin-top: 20px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 1.1em;
+    }
+
+    h1 {
+      color: hotpink;
+    }
+  </style>
+</head>
+<body>
+  <!-- Intro -->
+  <div class="box" id="intro">
+    <h1>Selamat datang di mini game Norimaa 🎮</h1>
+    <p>Cocokkan semua emoji! Kamu punya 1 menit tiap level ⏱</p>
+    <button onclick="startGame()">Mulai Game</button>
+  </div>
+
+  <!-- Game -->
+  <div class="box hidden" id="game">
+    <h2>Level <span id="levelNum">1</span></h2>
+    <div class="status">
+      ⏱ Waktu: <span id="timer">60</span> detik | ⭐ Skor: <span id="score">0</span>
+    </div>
+    <div class="grid" id="memoryGrid"></div>
+    <div id="message"></div>
+    <button class="hidden" id="retryBtn" onclick="resetGame()">Coba Lagi 🔁</button>
+  </div>
+
+  <script>
+    let level = 1;
+    let score = 0;
+    let timeLeft = 60;
+    let timerInterval;
+
+    const baseEmojis = ["😹","👻","🌻","🎉","🤢","😖","🤪","🍓","💖","🍡","🐸","🌈"];
+    const grid = document.getElementById('memoryGrid');
+    const message = document.getElementById('message');
+    const scoreDisplay = document.getElementById('score');
+    const levelDisplay = document.getElementById('levelNum');
+    const timerDisplay = document.getElementById('timer');
+    const retryBtn = document.getElementById('retryBtn');
+
+    function startGame() {
+      document.getElementById('intro').classList.add('hidden');
+      document.getElementById('game').classList.remove('hidden');
+      level = 1;
+      score = 0;
+      updateStatus();
+      loadLevel();
+    }
+
+    function resetGame() {
+      retryBtn.classList.add('hidden');
+      message.innerHTML = '';
+      level = 1;
+      score = 0;
+      updateStatus();
+      loadLevel();
+    }
+
+    function updateStatus() {
+      levelDisplay.innerText = level;
+      scoreDisplay.innerText = score;
+    }
+
+    function startTimer(callback) {
+      clearInterval(timerInterval);
+      timeLeft = 60;
+      timerDisplay.innerText = timeLeft;
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        timerDisplay.innerText = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          callback(); // Game over
+        }
+      }, 1000);
+    }
+
+    function loadLevel() {
+      clearInterval(timerInterval);
+      message.innerHTML = '';
+      updateStatus();
+
+      const emojis = baseEmojis.slice(0, level + 2);
+      const cards = [...emojis, ...emojis];
+      cards.sort(() => 0.5 - Math.random());
+
+      grid.innerHTML = '';
+      const cols = Math.min(cards.length / 2, 6);
+      grid.style.gridTemplateColumns = `repeat(${cols}, 60px)`;
+
+      let firstCard = null, secondCard = null, lock = false;
+      let matchedCount = 0;
+
+      startTimer(() => {
+        message.innerHTML = "<strong>Waktu habis! Game Over 💔</strong>";
+        retryBtn.classList.remove('hidden');
+        lock = true;
+      });
+
+      cards.forEach(emoji => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerText = '❓';
+        card.dataset.emoji = emoji;
+
+        card.onclick = () => {
+          if (lock || card.classList.contains('matched') || card.innerText !== '❓') return;
+
+          card.innerText = card.dataset.emoji;
+          if (!firstCard) {
+            firstCard = card;
+          } else {
+            secondCard = card;
+            lock = true;
+
+            if (firstCard.dataset.emoji === secondCard.dataset.emoji) {
+              firstCard.classList.add('matched');
+              secondCard.classList.add('matched');
+              firstCard = null;
+              secondCard = null;
+              lock = false;
+              matchedCount += 2;
+              score += 10;
+              updateStatus();
+
+              if (matchedCount === cards.length) {
+                clearInterval(timerInterval);
+                message.innerHTML = "<strong>Level up! 😎</strong>";
+                setTimeout(() => {
+                  level++;
+                  loadLevel();
+                }, 1500);
+              }
+            } else {
+              setTimeout(() => {
+                firstCard.innerText = '❓';
+                secondCard.innerText = '❓';
+                firstCard = null;
+                secondCard = null;
+                lock = false;
+              }, 1000);
+            }
+          }
+        };
+        grid.appendChild(card);
+      });
+    }
+  </script>
+</body>
+</html>
